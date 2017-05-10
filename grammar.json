@@ -1,0 +1,14 @@
+{
+   "@root": [
+      ["@ignore",       "\\s+"],
+      ["open-paren",    "\\(",      "s-expr"]
+   ],
+
+   "s-expr": [
+      ["@ignore",       "\\s+"],
+      ["word",          "[-!?+*/\\w]+"],
+      ["number",        "[0-9]*.?[0-9]+"],
+      ["open-paren",    "\\(",      "@push"],
+      ["close-paren",   "\\)",      "@pop"]
+   ]
+}

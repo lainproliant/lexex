@@ -3,6 +3,12 @@ import collections
 import re
 
 #--------------------------------------------------------------------
+IGNORE = '@ignore'
+PUSH = '@push'
+POP = '@pop'
+ROOT = '@root'
+
+#--------------------------------------------------------------------
 class LexError(Exception):
     def __init__(self, message, state = None, line = 0, col = 0,
             filename = '<stdin>'):
@@ -18,16 +24,18 @@ class LexError(Exception):
 
 #--------------------------------------------------------------------
 class LexemeType:
-    IGNORE = '@ignore'
-    
-    def __init__(self, name, expr, data = None, next_state = None):
+    def __init__(self, name, expr, next_state = None, data = None):
         self.name = name
         self.next_state = next_state
         self.data = data
-        if isinstance(expr, (list, tuple)):
-            self.regexes = [re.compile(ex) for ex in exprs]
-        else:
-            self.regexes = [re.compile(expr)]
+        
+        try:
+            if isinstance(expr, (list, tuple)):
+                self.regexes = [re.compile(ex) for ex in exprs]
+            else:
+                self.regexes = [re.compile(expr)]
+        except Exception as e:
+            raise LexError('Failed to parse a regular expression for lexeme type "%s" in grammar.' % name)
 
     def match(self, content, offset):
         for regex in self.regexes:
@@ -51,21 +59,24 @@ class Lexeme:
 
 #--------------------------------------------------------------------
 class Lexer:
-    PUSH = '@push'
-    POP = '@pop'
-    ROOT = '@root'
-    NEWLINE = '\n'
-
-    def __init__(self, filename = '<stdin>'):
+    def __init__(self, grammar = None, filename = '<stdin>'):
         self.state_lexeme_types_map = collections.defaultdict(list)
         self.filename = filename
 
-    def declare(self, state, lexeme_types):
+        if grammar is not None:
+            self.add_grammar(grammar)
+    
+    def add_grammar(self, grammar):
+        for state, lexeme_types in grammar.items():
+            self.add_state_lexeme_types(state, lexeme_types)
+        return self
+
+    def add_state_lexeme_types(self, state, lexeme_types):
         self.state_lexeme_types_map[state].extend([LexemeType(*lex_tuple) for lex_tuple in lexeme_types])
         return self
-    
-    def parse(self, content):
-        state_stack = [Lexer.ROOT]
+
+    def tokenize(self, content):
+        state_stack = [ROOT]
         lexemes = []
         content_length = len(content)
         n = 0
@@ -78,12 +89,12 @@ class Lexer:
             lexemes.append(lexeme)
             next_state = lexeme.type.next_state
             if next_state is not None:
-                if next_state == Lexer.PUSH:
-                    if state == Lexer.ROOT:
+                if next_state == PUSH:
+                    if state == ROOT:
                         raise LexError('Cannot push instances of the @root state.')
                     state_stack.append(state)
-                elif next_state == Lexer.POP:
-                    if state == Lexer.ROOT:
+                elif next_state == POP:
+                    if state == ROOT:
                         raise LexError('Cannot pop off the @root state.')
                     state_stack.pop()
                 else:
@@ -98,7 +109,7 @@ class Lexer:
                     col += 1
             n = next_n
                      
-        return [lex for lex in lexemes if lex.type.name != LexemeType.IGNORE]
+        return [lex for lex in lexemes if lex.type.name != IGNORE]
 
     def _get_next_lexeme(self, state, content, n, line, col):
         lexeme_types = self.state_lexeme_types_map[state]
