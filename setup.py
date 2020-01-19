@@ -9,7 +9,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 setup(
     name="lexex",
-    version="0.0.1",
+    version="1.0.0",
     description="Basic state-based lexer for parsing DSLs into tokens.",
     long_description=long_description,
     url="https://github.com/lainproliant/lexex",
@@ -30,4 +30,3 @@ setup(
     install_requires=[],
     entry_points={},
 )
-
